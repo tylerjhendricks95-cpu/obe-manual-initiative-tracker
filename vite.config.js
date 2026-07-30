@@ -1,8 +1,7 @@
-import { defineConfig } from "vite";
+import { defineConfig } from 'vite';
 
 export default defineConfig({
-  // Allows Owlbear Rodeo to iframe your extension during dev/prod
-  server: {
-    cors: true
-  }
+  base: '/obe-manual-initiative-tracker/',
+  // ... any other config you already have
 });
+
