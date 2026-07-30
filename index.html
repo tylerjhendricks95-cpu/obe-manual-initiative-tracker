@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Initiative & Monster Tracker</title>
+  <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+  <div class="app-container">
+    <nav class="nav-tabs">
+      <button class="tab-btn active" data-tab="tracker-tab">Combat</button>
+      <button class="tab-btn" data-tab="monster-tab">Repo & Custom</button>
+    </nav>
+
+    <!-- TAB 1: ACTIVE COMBAT TRACKER -->
+    <section id="tracker-tab" class="tab-content active">
+      <div id="gm-controls" class="panel">
+        <h3>Add Combatant</h3>
+        <div class="form-row">
+          <input type="text" id="add-name" placeholder="Name (Mini / PC)">
+          <input type="number" id="add-init" placeholder="Init" style="width: 70px;">
+        </div>
+        <div class="form-row">
+          <button id="add-btn" class="btn btn-primary">Add Manual</button>
+          <button id="add-selected-token-btn" class="btn btn-secondary">Link Selected Token</button>
+        </div>
+      </div>
+
+      <div class="combat-actions">
+        <button id="next-turn-btn" class="btn btn-accent">Next Turn ➔</button>
+        <button id="reset-combat-btn" class="btn btn-danger-link">Reset Combat</button>
+      </div>
+
+      <h3>Initiative Order</h3>
+      <div id="initiative-list" class="list-container"></div>
+    </section>
+
+    <!-- TAB 2: MONSTER REPO & CUSTOM MONSTER CREATOR -->
+    <section id="monster-tab" class="tab-content">
+      <div class="panel">
+        <h3>Create Custom Monster</h3>
+        <form id="create-monster-form">
+          <input type="text" id="m-name" placeholder="Name" required>
+          <div class="form-row">
+            <input type="text" id="m-type" placeholder="Type (e.g. Beast)">
+            <input type="text" id="m-cr" placeholder="CR" style="width: 60px;">
+          </div>
+          <div class="form-row">
+            <input type="number" id="m-hp" placeholder="HP" required>
+            <input type="number" id="m-ac" placeholder="AC" required>
+            <input type="number" id="m-init" placeholder="Init Mod">
+          </div>
+          <textarea id="m-notes" placeholder="Actions / Traits..."></textarea>
+          <button type="submit" class="btn btn-primary">Save Custom Monster</button>
+        </form>
+      </div>
+
+      <h3>Monster Library</h3>
+      <input type="text" id="search-monsters" placeholder="Search monsters...">
+      <div id="monster-repository" class="list-container"></div>
+    </section>
+  </div>
+
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>
+

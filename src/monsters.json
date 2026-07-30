@@ -1,0 +1,33 @@
+	[
+  {
+    "id": "goblin-std",
+    "name": "Goblin",
+    "type": "Humanoid",
+    "cr": "1/4",
+    "hp": 7,
+    "ac": 15,
+    "initMod": 2,
+    "notes": "Nimble Escape: Disengage or Hide as a bonus action."
+  },
+  {
+    "id": "orc-std",
+    "name": "Orc",
+    "type": "Humanoid",
+    "cr": "1/2",
+    "hp": 15,
+    "ac": 13,
+    "initMod": 1,
+    "notes": "Aggressive: Move up to speed toward an enemy as a bonus action."
+  },
+  {
+    "id": "bugbear-std",
+    "name": "Bugbear",
+    "type": "Humanoid",
+    "cr": "1",
+    "hp": 27,
+    "ac": 16,
+    "initMod": 2,
+    "notes": "Surprise Attack: Deals extra 2d6 damage on first round against surprised targets."
+  }
+]
+
