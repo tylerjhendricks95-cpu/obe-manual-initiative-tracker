@@ -503,3 +503,10 @@ function setupTabs() {
     });
   });
 }
+
+userRole = await OBR.player.getRole();
+
+// Add 'player-view' class to the container for compact styling
+if (userRole !== "GM") {
+  document.querySelector(".app-container")?.classList.add("player-view");
+}
