@@ -1,6 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import defaultMonsters from "./monsters.json";
-import "../style.css";
+import "./style.css";
 import { 
   getCustomMonsters, 
   saveCustomMonster, 
