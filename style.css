@@ -49,3 +49,12 @@ input:focus, textarea:focus { border-color: var(--accent); }
 .btn-sm:hover {
   background: rgba(255, 255, 255, 0.25);
 }
+
+.group-header {
+  display: flex;
+  justify-content: space-between;
+  align-content: center;
+  margin-top: 15px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.2);
+  padding-bottom: 4px;
+}
