@@ -15,9 +15,13 @@ let state = {
   activeIndex: 0
 };
 
+let userRole = "PLAYER"; // Track user role locally
+
 OBR.onReady(async () => {
   await OBR.action.setIcon("/icon.png");
   await OBR.action.setTitle("Initiative Tracker");
+
+  userRole = await OBR.player.getRole();
 
   setupTabs();
   renderMonsterRepository();
@@ -25,10 +29,12 @@ OBR.onReady(async () => {
   renderPartyList();
   setupPartyForm();
 
-  const role = await OBR.player.getRole();
-  if (role !== "GM") {
-    document.getElementById("gm-controls").style.display = "none";
-    document.querySelector(".combat-actions").style.display = "none";
+  // Hide GM controls if viewer is a player
+  if (userRole !== "GM") {
+    const gmControls = document.getElementById("gm-controls");
+    const combatActions = document.querySelector(".combat-actions");
+    if (gmControls) gmControls.style.display = "none";
+    if (combatActions) combatActions.style.display = "none";
   }
 
   OBR.room.onMetadataChange((metadata) => {
@@ -130,6 +136,8 @@ function setupPartyForm() {
   const form = document.getElementById("pc-form");
   const cancelBtn = document.getElementById("pc-cancel-btn");
 
+  if (!form) return;
+
   form.addEventListener("submit", (e) => {
     e.preventDefault();
     const editId = document.getElementById("pc-edit-id").value;
@@ -194,12 +202,14 @@ function renderPartyList() {
     groupHeader.className = "group-header";
     groupHeader.innerHTML = `
       <strong style="color:var(--accent,#4da6ff);">${groupName}</strong>
-      <button class="btn btn-secondary btn-sm add-group-btn">+ Add Group to Combat</button>
+      ${userRole === "GM" ? '<button class="btn btn-secondary btn-sm add-group-btn">+ Add Group to Combat</button>' : ''}
     `;
 
-    groupHeader.querySelector(".add-group-btn").addEventListener("click", () => {
-      groups[groupName].forEach((pc) => addPcToCombat(pc));
-    });
+    if (userRole === "GM") {
+      groupHeader.querySelector(".add-group-btn").addEventListener("click", () => {
+        groups[groupName].forEach((pc) => addPcToCombat(pc));
+      });
+    }
 
     container.appendChild(groupHeader);
 
@@ -212,19 +222,25 @@ function renderPartyList() {
           <strong>${pc.name}</strong>
           <div style="font-size:11px; color:var(--muted)">HP: ${pc.hp} | Init/Mod: ${pc.init}</div>
         </div>
-        <div style="display:flex; gap:4px;">
-          <button class="btn btn-primary btn-sm add-pc-btn">+ Add</button>
-          <button class="btn btn-secondary btn-sm edit-pc-btn">✏️</button>
-          <button class="btn-sm delete-pc-btn" style="background:none; border:none; color:#ff4d4d; cursor:pointer;">✕</button>
-        </div>
+        ${
+          userRole === "GM"
+            ? `<div style="display:flex; gap:4px;">
+                <button class="btn btn-primary btn-sm add-pc-btn">+ Add</button>
+                <button class="btn btn-secondary btn-sm edit-pc-btn">✏️</button>
+                <button class="btn-sm delete-pc-btn" style="background:none; border:none; color:#ff4d4d; cursor:pointer;">✕</button>
+               </div>`
+            : ""
+        }
       `;
 
-      card.querySelector(".add-pc-btn").addEventListener("click", () => addPcToCombat(pc));
-      card.querySelector(".edit-pc-btn").addEventListener("click", () => editPC(pc));
-      card.querySelector(".delete-pc-btn").addEventListener("click", () => {
-        deletePC(pc.id);
-        renderPartyList();
-      });
+      if (userRole === "GM") {
+        card.querySelector(".add-pc-btn").addEventListener("click", () => addPcToCombat(pc));
+        card.querySelector(".edit-pc-btn").addEventListener("click", () => editPC(pc));
+        card.querySelector(".delete-pc-btn").addEventListener("click", () => {
+          deletePC(pc.id);
+          renderPartyList();
+        });
+      }
 
       container.appendChild(card);
     });
@@ -247,26 +263,30 @@ function addPcToCombat(pc) {
 }
 
 // Custom Monster Creator Form
-document.getElementById("create-monster-form").addEventListener("submit", (e) => {
-  e.preventDefault();
+const createMonsterForm = document.getElementById("create-monster-form");
+if (createMonsterForm) {
+  createMonsterForm.addEventListener("submit", (e) => {
+    e.preventDefault();
 
-  const newMonster = {
-    id: crypto.randomUUID(),
-    name: document.getElementById("m-name").value,
-    meta: document.getElementById("m-type").value || "Custom",
-    Challenge: document.getElementById("m-cr").value || "1",
-    "Hit Points": document.getElementById("m-hp").value,
-    "Armor Class": document.getElementById("m-ac").value,
-    DEX_mod: `(${document.getElementById("m-init").value || 0})`,
-    notes: document.getElementById("m-notes").value
-  };
+    const newMonster = {
+      id: crypto.randomUUID(),
+      name: document.getElementById("m-name").value,
+      meta: document.getElementById("m-type").value || "Custom",
+      Challenge: document.getElementById("m-cr").value || "1",
+      "Hit Points": document.getElementById("m-hp").value,
+      "Armor Class": document.getElementById("m-ac").value,
+      DEX_mod: `(${document.getElementById("m-init").value || 0})`,
+      notes: document.getElementById("m-notes").value
+    };
 
-  saveCustomMonster(newMonster);
-  e.target.reset();
-  renderMonsterRepository();
-});
+    saveCustomMonster(newMonster);
+    e.target.reset();
+    renderMonsterRepository();
+  });
+}
 
 function changeHp(combatantId, amount) {
+  if (userRole !== "GM") return;
   const combatant = state.combatants.find((c) => c.id === combatantId);
   if (!combatant) return;
 
@@ -278,6 +298,7 @@ function changeHp(combatantId, amount) {
 }
 
 function setManualHp(combatantId) {
+  if (userRole !== "GM") return;
   const combatant = state.combatants.find((c) => c.id === combatantId);
   if (!combatant) return;
 
@@ -295,6 +316,7 @@ function setManualHp(combatantId) {
 }
 
 function removeCombatant(combatantId) {
+  if (userRole !== "GM") return;
   state.combatants = state.combatants.filter((c) => c.id !== combatantId);
   if (state.activeIndex >= state.combatants.length) {
     state.activeIndex = 0;
@@ -303,6 +325,7 @@ function removeCombatant(combatantId) {
   syncState();
 }
 
+// Render Main Tracker
 function renderTracker() {
   const list = document.getElementById("initiative-list");
   if (!list) return;
@@ -316,44 +339,58 @@ function renderTracker() {
     const maxHpDisplay = c.maxHp ? ` / ${c.maxHp}` : "";
     const isUnconscious = typeof hp === "number" && hp <= 0;
 
-    card.innerHTML = `
-      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-        <div>
-          <strong>${c.name}</strong> ${c.tokenId ? "🔗" : ""}
-          ${isUnconscious ? '<span style="color:#ff4d4d; font-size:11px; margin-left: 5px;">(Unconscious)</span>' : ''}
+    // GM view gets HP controls; Players only see status & initiative order
+    if (userRole === "GM") {
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+          <div>
+            <strong>${c.name}</strong> ${c.tokenId ? "🔗" : ""}
+            ${isUnconscious ? '<span style="color:#ff4d4d; font-size:11px; margin-left: 5px;">(Unconscious)</span>' : ''}
+          </div>
+          <div>Init: <strong>${c.initiative}</strong></div>
         </div>
-        <div>Init: <strong>${c.initiative}</strong></div>
-      </div>
-      
-      <div style="display:flex; align-items:center; gap: 4px; font-size: 12px; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px;">
-        <span style="font-weight:bold; margin-right: 4px;">HP:</span>
-        <button class="btn-sm hp-btn" data-id="${c.id}" data-change="-5">-5</button>
-        <button class="btn-sm hp-btn" data-id="${c.id}" data-change="-1">-1</button>
-        <span class="hp-val" data-id="${c.id}" style="cursor:pointer; font-weight:bold; padding: 0 4px;" title="Click to set HP directly">
-          ${hp}${maxHpDisplay}
-        </span>
-        <button class="btn-sm hp-btn" data-id="${c.id}" data-change="1">+1</button>
-        <button class="btn-sm hp-btn" data-id="${c.id}" data-change="5">+5</button>
-        <button class="remove-btn" data-id="${c.id}" style="margin-left:auto; background:none; border:none; color:#ff4d4d; cursor:pointer; font-size:14px;">✕</button>
-      </div>
-    `;
+        
+        <div style="display:flex; align-items:center; gap: 4px; font-size: 12px; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px;">
+          <span style="font-weight:bold; margin-right: 4px;">HP:</span>
+          <button class="btn-sm hp-btn" data-id="${c.id}" data-change="-5">-5</button>
+          <button class="btn-sm hp-btn" data-id="${c.id}" data-change="-1">-1</button>
+          <span class="hp-val" data-id="${c.id}" style="cursor:pointer; font-weight:bold; padding: 0 4px;" title="Click to set HP directly">
+            ${hp}${maxHpDisplay}
+          </span>
+          <button class="btn-sm hp-btn" data-id="${c.id}" data-change="1">+1</button>
+          <button class="btn-sm hp-btn" data-id="${c.id}" data-change="5">+5</button>
+          <button class="remove-btn" data-id="${c.id}" style="margin-left:auto; background:none; border:none; color:#ff4d4d; cursor:pointer; font-size:14px;">✕</button>
+        </div>
+      `;
 
-    card.querySelectorAll(".hp-btn").forEach((btn) => {
-      btn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        changeHp(btn.dataset.id, parseInt(btn.dataset.change, 10));
+      card.querySelectorAll(".hp-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          changeHp(btn.dataset.id, parseInt(btn.dataset.change, 10));
+        });
       });
-    });
 
-    card.querySelector(".hp-val").addEventListener("click", (e) => {
-      e.stopPropagation();
-      setManualHp(c.id);
-    });
+      card.querySelector(".hp-val").addEventListener("click", (e) => {
+        e.stopPropagation();
+        setManualHp(c.id);
+      });
 
-    card.querySelector(".remove-btn").addEventListener("click", (e) => {
-      e.stopPropagation();
-      removeCombatant(c.id);
-    });
+      card.querySelector(".remove-btn").addEventListener("click", (e) => {
+        e.stopPropagation();
+        removeCombatant(c.id);
+      });
+    } else {
+      // Player view (names, initiative order, turn highlight, unconscious indicator only)
+      card.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div>
+            <strong>${c.name}</strong>
+            ${isUnconscious ? '<span style="color:#ff4d4d; font-size:11px; margin-left: 5px;">(Unconscious)</span>' : ''}
+          </div>
+          <div>Init: <strong>${c.initiative}</strong></div>
+        </div>
+      `;
+    }
 
     list.appendChild(card);
   });
@@ -398,12 +435,14 @@ function renderMonsterRepository(filterQuery = "") {
         <strong>${m.name}</strong> <span style="color:var(--muted)">(CR ${cr})</span>
         <div style="font-size:11px; color:var(--muted)">HP: ${hp} | AC: ${ac}</div>
       </div>
-      <button class="btn btn-primary add-btn">+ Add</button>
+      ${userRole === "GM" ? '<button class="btn btn-primary add-btn">+ Add</button>' : ''}
     `;
 
-    card.querySelector(".add-btn").addEventListener("click", () => {
-      addMonsterObjToCombat(m);
-    });
+    if (userRole === "GM") {
+      card.querySelector(".add-btn").addEventListener("click", () => {
+        addMonsterObjToCombat(m);
+      });
+    }
 
     container.appendChild(card);
   });
