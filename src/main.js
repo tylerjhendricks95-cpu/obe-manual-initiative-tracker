@@ -1,32 +1,36 @@
 import OBR from "@owlbear-rodeo/sdk";
 import defaultMonsters from "./monsters.json";
-import { getCustomMonsters, saveCustomMonster, deleteCustomMonster } from "./store.js";
+import { 
+  getCustomMonsters, 
+  saveCustomMonster, 
+  getSavedPCs, 
+  savePC, 
+  deletePC 
+} from "./store.js";
 
 const METADATA_KEY = "com.custom.initiative/trackerState";
 
-// Local state
 let state = {
   combatants: [],
   activeIndex: 0
 };
 
 OBR.onReady(async () => {
-  // Set toolbar icon and tooltip title
   await OBR.action.setIcon("/icon.png");
   await OBR.action.setTitle("Initiative Tracker");
 
   setupTabs();
   renderMonsterRepository();
   setupSearchListener();
+  renderPartyList();
+  setupPartyForm();
 
-  // Hide GM controls if viewer is a player
   const role = await OBR.player.getRole();
   if (role !== "GM") {
     document.getElementById("gm-controls").style.display = "none";
     document.querySelector(".combat-actions").style.display = "none";
   }
 
-  // Subscribe to metadata updates across all clients (TV & GM screens)
   OBR.room.onMetadataChange((metadata) => {
     const roomState = metadata[METADATA_KEY];
     if (roomState) {
@@ -35,7 +39,6 @@ OBR.onReady(async () => {
     }
   });
 
-  // Fetch initial state
   const initialMetadata = await OBR.room.getMetadata();
   if (initialMetadata[METADATA_KEY]) {
     state = initialMetadata[METADATA_KEY];
@@ -43,12 +46,11 @@ OBR.onReady(async () => {
   }
 });
 
-// Update State in Room Metadata
 async function syncState() {
   await OBR.room.setMetadata({ [METADATA_KEY]: state });
 }
 
-// Add Combatant (Manual / Mini)
+// Add Combatant (Manual)
 document.getElementById("add-btn").addEventListener("click", () => {
   const name = document.getElementById("add-name").value.trim();
   const init = parseInt(document.getElementById("add-init").value, 10);
@@ -72,7 +74,7 @@ document.getElementById("add-btn").addEventListener("click", () => {
   document.getElementById("add-init").value = "";
 });
 
-// Link Active Token to Next Combatant
+// Link Active Token
 document.getElementById("add-selected-token-btn").addEventListener("click", async () => {
   const selection = await OBR.player.getSelection();
   const name = document.getElementById("add-name").value.trim() || "Token Combatant";
@@ -94,20 +96,19 @@ document.getElementById("add-selected-token-btn").addEventListener("click", asyn
   syncState();
 });
 
-// Next Turn Button & Token Highlighting
+// Next Turn
 document.getElementById("next-turn-btn").addEventListener("click", async () => {
   if (state.combatants.length === 0) return;
 
   state.activeIndex = (state.activeIndex + 1) % state.combatants.length;
   const current = state.combatants[state.activeIndex];
 
-  // Highlight Token if bound to a map item
   if (current.tokenId) {
     await OBR.scene.items.updateItems(
       (item) => item.id === current.tokenId,
       (items) => {
         items.forEach((item) => {
-          item.scale = { x: 1.2, y: 1.2 }; // Enlarges current monster on TV
+          item.scale = { x: 1.2, y: 1.2 };
         });
       }
     );
@@ -123,6 +124,127 @@ document.getElementById("reset-combat-btn").addEventListener("click", () => {
   renderTracker();
   syncState();
 });
+
+// PC Form Logic
+function setupPartyForm() {
+  const form = document.getElementById("pc-form");
+  const cancelBtn = document.getElementById("pc-cancel-btn");
+
+  form.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const editId = document.getElementById("pc-edit-id").value;
+
+    const pc = {
+      id: editId ? editId : crypto.randomUUID(),
+      name: document.getElementById("pc-name").value.trim(),
+      hp: parseInt(document.getElementById("pc-hp").value, 10),
+      init: parseInt(document.getElementById("pc-init").value, 10) || 0,
+      group: document.getElementById("pc-group").value.trim() || "Default Party"
+    };
+
+    savePC(pc);
+    resetPCForm();
+    renderPartyList();
+  });
+
+  cancelBtn.addEventListener("click", resetPCForm);
+}
+
+function resetPCForm() {
+  document.getElementById("pc-form").reset();
+  document.getElementById("pc-edit-id").value = "";
+  document.getElementById("pc-submit-btn").textContent = "Save Player";
+  document.getElementById("pc-cancel-btn").style.display = "none";
+}
+
+function editPC(pc) {
+  document.getElementById("pc-edit-id").value = pc.id;
+  document.getElementById("pc-name").value = pc.name;
+  document.getElementById("pc-hp").value = pc.hp;
+  document.getElementById("pc-init").value = pc.init;
+  document.getElementById("pc-group").value = pc.group;
+
+  document.getElementById("pc-submit-btn").textContent = "Update Player";
+  document.getElementById("pc-cancel-btn").style.display = "inline-block";
+}
+
+function renderPartyList() {
+  const container = document.getElementById("party-list");
+  if (!container) return;
+
+  const pcs = getSavedPCs();
+  container.innerHTML = "";
+
+  if (pcs.length === 0) {
+    container.innerHTML = `<div style="padding: 10px; color: var(--muted); text-align: center;">No player characters saved yet.</div>`;
+    return;
+  }
+
+  // Group PCs by group name
+  const groups = {};
+  pcs.forEach((pc) => {
+    const gName = pc.group || "Default Party";
+    if (!groups[gName]) groups[gName] = [];
+    groups[gName].push(pc);
+  });
+
+  // Render by group
+  Object.keys(groups).forEach((groupName) => {
+    const groupHeader = document.createElement("div");
+    groupHeader.className = "group-header";
+    groupHeader.innerHTML = `
+      <strong style="color:var(--accent,#4da6ff);">${groupName}</strong>
+      <button class="btn btn-secondary btn-sm add-group-btn">+ Add Group to Combat</button>
+    `;
+
+    groupHeader.querySelector(".add-group-btn").addEventListener("click", () => {
+      groups[groupName].forEach((pc) => addPcToCombat(pc));
+    });
+
+    container.appendChild(groupHeader);
+
+    groups[groupName].forEach((pc) => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.style.marginTop = "6px";
+      card.innerHTML = `
+        <div>
+          <strong>${pc.name}</strong>
+          <div style="font-size:11px; color:var(--muted)">HP: ${pc.hp} | Init/Mod: ${pc.init}</div>
+        </div>
+        <div style="display:flex; gap:4px;">
+          <button class="btn btn-primary btn-sm add-pc-btn">+ Add</button>
+          <button class="btn btn-secondary btn-sm edit-pc-btn">✏️</button>
+          <button class="btn-sm delete-pc-btn" style="background:none; border:none; color:#ff4d4d; cursor:pointer;">✕</button>
+        </div>
+      `;
+
+      card.querySelector(".add-pc-btn").addEventListener("click", () => addPcToCombat(pc));
+      card.querySelector(".edit-pc-btn").addEventListener("click", () => editPC(pc));
+      card.querySelector(".delete-pc-btn").addEventListener("click", () => {
+        deletePC(pc.id);
+        renderPartyList();
+      });
+
+      container.appendChild(card);
+    });
+  });
+}
+
+function addPcToCombat(pc) {
+  state.combatants.push({
+    id: crypto.randomUUID(),
+    name: pc.name,
+    initiative: pc.init,
+    hp: pc.hp,
+    maxHp: pc.hp,
+    tokenId: null
+  });
+
+  state.combatants.sort((a, b) => b.initiative - a.initiative);
+  renderTracker();
+  syncState();
+}
 
 // Custom Monster Creator Form
 document.getElementById("create-monster-form").addEventListener("submit", (e) => {
@@ -144,7 +266,6 @@ document.getElementById("create-monster-form").addEventListener("submit", (e) =>
   renderMonsterRepository();
 });
 
-// Adjust Combatant HP
 function changeHp(combatantId, amount) {
   const combatant = state.combatants.find((c) => c.id === combatantId);
   if (!combatant) return;
@@ -156,7 +277,6 @@ function changeHp(combatantId, amount) {
   syncState();
 }
 
-// Prompt to manually override HP
 function setManualHp(combatantId) {
   const combatant = state.combatants.find((c) => c.id === combatantId);
   if (!combatant) return;
@@ -174,7 +294,6 @@ function setManualHp(combatantId) {
   }
 }
 
-// Remove combatant from list
 function removeCombatant(combatantId) {
   state.combatants = state.combatants.filter((c) => c.id !== combatantId);
   if (state.activeIndex >= state.combatants.length) {
@@ -184,7 +303,6 @@ function removeCombatant(combatantId) {
   syncState();
 }
 
-// Render Main Tracker
 function renderTracker() {
   const list = document.getElementById("initiative-list");
   if (!list) return;
@@ -199,7 +317,7 @@ function renderTracker() {
     const isUnconscious = typeof hp === "number" && hp <= 0;
 
     card.innerHTML = `
-      <div style="display:flex; justify-between; align-items:center; margin-bottom: 6px;">
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
         <div>
           <strong>${c.name}</strong> ${c.tokenId ? "🔗" : ""}
           ${isUnconscious ? '<span style="color:#ff4d4d; font-size:11px; margin-left: 5px;">(Unconscious)</span>' : ''}
@@ -220,23 +338,18 @@ function renderTracker() {
       </div>
     `;
 
-    // Event listeners for HP adjustments
     card.querySelectorAll(".hp-btn").forEach((btn) => {
       btn.addEventListener("click", (e) => {
         e.stopPropagation();
-        const id = btn.dataset.id;
-        const change = parseInt(btn.dataset.change, 10);
-        changeHp(id, change);
+        changeHp(btn.dataset.id, parseInt(btn.dataset.change, 10));
       });
     });
 
-    // Event listener for manual HP override click
     card.querySelector(".hp-val").addEventListener("click", (e) => {
       e.stopPropagation();
-      setManualHp(btn.dataset.id);
+      setManualHp(c.id);
     });
 
-    // Remove combatant button
     card.querySelector(".remove-btn").addEventListener("click", (e) => {
       e.stopPropagation();
       removeCombatant(c.id);
@@ -246,7 +359,6 @@ function renderTracker() {
   });
 }
 
-// Render Monster Repository List with Search Filtering
 function renderMonsterRepository(filterQuery = "") {
   const container = document.getElementById("monster-repository");
   if (!container) return;
@@ -261,7 +373,6 @@ function renderMonsterRepository(filterQuery = "") {
     return;
   }
 
-  // Filter full dataset by name or metadata/type
   const filteredMonsters = allMonsters.filter((m) => {
     const nameMatch = m.name && m.name.toLowerCase().includes(query);
     const metaMatch = typeof m.meta === "string" && m.meta.toLowerCase().includes(query);
@@ -274,12 +385,10 @@ function renderMonsterRepository(filterQuery = "") {
     return;
   }
 
-  // Cap visible matches at 30 to keep rendering smooth
   filteredMonsters.slice(0, 30).forEach((m) => {
     const card = document.createElement("div");
     card.className = "card";
     
-    // Safely parse properties matching the new JSON schema
     const cr = m.Challenge ?? m.cr ?? 'N/A';
     const hp = m["Hit Points"] ?? m.hp ?? 'N/A';
     const ac = m["Armor Class"] ?? m.ac ?? 'N/A';
@@ -300,7 +409,6 @@ function renderMonsterRepository(filterQuery = "") {
   });
 }
 
-// Bind search input event listener using matching element ID
 function setupSearchListener() {
   const searchInput = document.getElementById("search-monsters");
   if (searchInput) {
@@ -312,8 +420,6 @@ function setupSearchListener() {
 
 function addMonsterObjToCombat(monster) {
   const d20Roll = Math.floor(Math.random() * 20) + 1;
-  
-  // Extract DEX modifier number from formats like "(+5)", "(-1)", or standard integer
   let initMod = 0;
   if (monster.DEX_mod) {
     const parsed = parseInt(monster.DEX_mod.replace(/[^0-9-]/g, ''), 10);
@@ -322,7 +428,6 @@ function addMonsterObjToCombat(monster) {
     initMod = parseInt(monster.initMod, 10) || 0;
   }
 
-  // Extract baseline numerical HP (e.g. extracts 135 from "135 (18d10 + 36)")
   let parsedHp = 10;
   const rawHp = monster["Hit Points"] ?? monster.hp;
   if (typeof rawHp === "number") {
