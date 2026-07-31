@@ -13,6 +13,7 @@ let state = {
 OBR.onReady(async () => {
   setupTabs();
   renderMonsterRepository();
+  setupSearchListener(); // <--- Initialize search listener
 
   // Hide GM controls if viewer is a player
   const role = await OBR.player.getRole();
@@ -149,13 +150,30 @@ function renderTracker() {
   });
 }
 
-// Render Monster Repository List
-function renderMonsterRepository() {
+// Render Monster Repository List with Search Filtering
+function renderMonsterRepository(filterQuery = "") {
   const container = document.getElementById("monster-repository");
   const allMonsters = [...defaultMonsters, ...getCustomMonsters()];
   container.innerHTML = "";
 
-  allMonsters.forEach((m) => {
+  const query = filterQuery.toLowerCase().trim();
+  
+  // Filter by name or type if a query is typed
+  const filteredMonsters = query
+    ? allMonsters.filter((m) => {
+        const nameMatch = m.name && m.name.toLowerCase().includes(query);
+        const typeMatch = typeof m.type === "string" && m.type.toLowerCase().includes(query);
+        return nameMatch || typeMatch;
+      })
+    : allMonsters;
+
+  if (filteredMonsters.length === 0) {
+    container.innerHTML = `<div style="padding: 10px; color: var(--muted); text-align: center;">No monsters found</div>`;
+    return;
+  }
+
+  // Cap results at 50 items to keep performance smooth
+  filteredMonsters.slice(0, 50).forEach((m) => {
     const card = document.createElement("div");
     card.className = "card";
     card.innerHTML = `
@@ -167,6 +185,16 @@ function renderMonsterRepository() {
     `;
     container.appendChild(card);
   });
+}
+
+// Bind search input event listener
+function setupSearchListener() {
+  const searchInput = document.getElementById("monster-search");
+  if (searchInput) {
+    searchInput.addEventListener("input", (e) => {
+      renderMonsterRepository(e.target.value);
+    });
+  }
 }
 
 window.addMonsterToCombat = function (id) {
