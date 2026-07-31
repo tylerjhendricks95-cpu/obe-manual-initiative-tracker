@@ -2,11 +2,7 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   build: {
-    target: "esnext",
-    cssCodeSplit: false, // Bundles all CSS into a single file for easy loading
-  },
-  css: {
-    devSourcemap: true, // Helps locate CSS rules when inspecting elements
+    target: "esnext", // THIS TELLS ESBUILD TO ALLOW TOP-LEVEL AWAIT
   },
   server: {
     cors: true,
