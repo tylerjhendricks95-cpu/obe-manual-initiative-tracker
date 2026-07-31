@@ -59,6 +59,7 @@ document.getElementById("add-btn").addEventListener("click", () => {
   });
 
   state.combatants.sort((a, b) => b.initiative - a.initiative);
+  renderTracker();
   syncState();
 
   document.getElementById("add-name").value = "";
@@ -81,6 +82,7 @@ document.getElementById("add-selected-token-btn").addEventListener("click", asyn
   });
 
   state.combatants.sort((a, b) => b.initiative - a.initiative);
+  renderTracker();
   syncState();
 });
 
@@ -103,12 +105,14 @@ document.getElementById("next-turn-btn").addEventListener("click", async () => {
     );
   }
 
+  renderTracker();
   syncState();
 });
 
 // Reset Combat
 document.getElementById("reset-combat-btn").addEventListener("click", () => {
   state = { combatants: [], activeIndex: 0 };
+  renderTracker();
   syncState();
 });
 
@@ -135,6 +139,7 @@ document.getElementById("create-monster-form").addEventListener("submit", (e) =>
 // Render Main Tracker
 function renderTracker() {
   const list = document.getElementById("initiative-list");
+  if (!list) return;
   list.innerHTML = "";
 
   state.combatants.forEach((c, idx) => {
@@ -150,15 +155,16 @@ function renderTracker() {
   });
 }
 
-// Render Monster Repository List with Search Filtering (Option 1)
+// Render Monster Repository List with Search Filtering
 function renderMonsterRepository(filterQuery = "") {
   const container = document.getElementById("monster-repository");
+  if (!container) return;
+
   const allMonsters = [...defaultMonsters, ...getCustomMonsters()];
   container.innerHTML = "";
 
   const query = filterQuery.toLowerCase().trim();
 
-  // If search query is empty, ask user to search (prevents initial lag/partial load)
   if (!query) {
     container.innerHTML = `<div style="padding: 10px; color: var(--muted); text-align: center;">Type in the search bar to find monsters</div>`;
     return;
@@ -180,13 +186,25 @@ function renderMonsterRepository(filterQuery = "") {
   filteredMonsters.slice(0, 30).forEach((m) => {
     const card = document.createElement("div");
     card.className = "card";
+    
+    // Safely parse properties regardless of how monsters.json formats them
+    const cr = m.cr ?? m.challenge_rating ?? 'N/A';
+    const hp = m.hp ?? m.hit_points ?? 'N/A';
+    const ac = m.ac ?? m.armor_class ?? 'N/A';
+
     card.innerHTML = `
       <div>
-        <strong>${m.name}</strong> <span style="color:var(--muted)">(CR ${m.cr ?? 'N/A'})</span>
-        <div style="font-size:11px; color:var(--muted)">HP: ${m.hp ?? 'N/A'} | AC: ${m.ac ?? 'N/A'}</div>
+        <strong>${m.name}</strong> <span style="color:var(--muted)">(CR ${cr})</span>
+        <div style="font-size:11px; color:var(--muted)">HP: ${hp} | AC: ${ac}</div>
       </div>
-      <button class="btn btn-primary" onclick="addMonsterToCombat('${m.id}')">+ Add</button>
+      <button class="btn btn-primary add-btn">+ Add</button>
     `;
+
+    // Direct event listener eliminates reliance on monster ID existence
+    card.querySelector(".add-btn").addEventListener("click", () => {
+      addMonsterObjToCombat(m);
+    });
+
     container.appendChild(card);
   });
 }
@@ -201,13 +219,9 @@ function setupSearchListener() {
   }
 }
 
-window.addMonsterToCombat = function (id) {
-  const allMonsters = [...defaultMonsters, ...getCustomMonsters()];
-  const monster = allMonsters.find((m) => m.id === id);
-  if (!monster) return;
-
+function addMonsterObjToCombat(monster) {
   const d20Roll = Math.floor(Math.random() * 20) + 1;
-  const initMod = monster.initMod || 0;
+  const initMod = parseInt(monster.initMod ?? monster.dexterity_modifier ?? 0, 10) || 0;
   const init = d20Roll + initMod;
 
   state.combatants.push({
@@ -218,8 +232,9 @@ window.addMonsterToCombat = function (id) {
   });
 
   state.combatants.sort((a, b) => b.initiative - a.initiative);
+  renderTracker();
   syncState();
-};
+}
 
 function setupTabs() {
   document.querySelectorAll(".tab-btn").forEach((btn) => {
