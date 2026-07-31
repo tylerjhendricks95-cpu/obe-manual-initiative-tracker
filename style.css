@@ -28,7 +28,6 @@ body {
   max-width: 100%;
 }
 
-/* Tabs Navigation */
 .nav-tabs {
   display: flex;
   gap: 4px;
@@ -66,7 +65,6 @@ body {
   display: block;
 }
 
-/* Form Panels */
 .panel {
   background: var(--panel-bg);
   padding: 10px;
@@ -109,7 +107,6 @@ textarea {
   margin-bottom: 6px;
 }
 
-/* Buttons */
 .btn {
   border: none;
   border-radius: 4px;
@@ -168,7 +165,6 @@ textarea {
   margin-bottom: 12px;
 }
 
-/* Item Cards */
 .list-container {
   display: flex;
   flex-direction: column;
@@ -190,7 +186,6 @@ textarea {
   box-shadow: 0 0 8px rgba(77, 166, 255, 0.3);
 }
 
-/* Party Group Header */
 .group-header {
   display: flex;
   justify-content: space-between;
@@ -200,25 +195,18 @@ textarea {
   padding-bottom: 4px;
 }
 
-/* Monster Search */
 #search-monsters {
   margin-bottom: 8px;
 }
-
-/* ==========================================================================
-   Player View Overrides (Applied when container has .player-view)
-   ========================================================================== */
 
 .app-container.player-view {
   padding: 4px;
 }
 
-/* Hide navigation tabs on player view */
 .app-container.player-view .nav-tabs {
   display: none;
 }
 
-/* Compact headers and cards for players */
 .app-container.player-view h3 {
   font-size: 12px;
   margin: 4px 0;
