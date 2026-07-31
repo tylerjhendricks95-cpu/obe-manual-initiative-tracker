@@ -11,6 +11,10 @@ let state = {
 };
 
 OBR.onReady(async () => {
+  // Set toolbar icon and tooltip title
+  await OBR.action.setIcon("/icon.png");
+  await OBR.action.setTitle("Initiative Tracker");
+
   setupTabs();
   renderMonsterRepository();
   setupSearchListener();
