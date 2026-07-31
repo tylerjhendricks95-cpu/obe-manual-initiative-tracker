@@ -2,11 +2,13 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
   build: {
-    // Set target to modern JS to support top-level await and modern features if needed
     target: "esnext",
+    cssCodeSplit: false, // Bundles all CSS into a single file for easy loading
+  },
+  css: {
+    devSourcemap: true, // Helps locate CSS rules when inspecting elements
   },
   server: {
-    // Allows Owlbear Rodeo iframe to load your local development server smoothly
     cors: true,
   },
 });
