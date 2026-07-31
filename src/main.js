@@ -123,11 +123,11 @@ document.getElementById("create-monster-form").addEventListener("submit", (e) =>
   const newMonster = {
     id: crypto.randomUUID(),
     name: document.getElementById("m-name").value,
-    type: document.getElementById("m-type").value || "Custom",
-    cr: document.getElementById("m-cr").value || "1",
-    hp: parseInt(document.getElementById("m-hp").value, 10),
-    ac: parseInt(document.getElementById("m-ac").value, 10),
-    initMod: parseInt(document.getElementById("m-init").value, 10) || 0,
+    meta: document.getElementById("m-type").value || "Custom",
+    Challenge: document.getElementById("m-cr").value || "1",
+    "Hit Points": document.getElementById("m-hp").value,
+    "Armor Class": document.getElementById("m-ac").value,
+    DEX_mod: `(${document.getElementById("m-init").value || 0})`,
     notes: document.getElementById("m-notes").value
   };
 
@@ -170,11 +170,12 @@ function renderMonsterRepository(filterQuery = "") {
     return;
   }
 
-  // Filter full dataset by name or type
+  // Filter full dataset by name or metadata/type
   const filteredMonsters = allMonsters.filter((m) => {
     const nameMatch = m.name && m.name.toLowerCase().includes(query);
+    const metaMatch = typeof m.meta === "string" && m.meta.toLowerCase().includes(query);
     const typeMatch = typeof m.type === "string" && m.type.toLowerCase().includes(query);
-    return nameMatch || typeMatch;
+    return nameMatch || metaMatch || typeMatch;
   });
 
   if (filteredMonsters.length === 0) {
@@ -187,10 +188,10 @@ function renderMonsterRepository(filterQuery = "") {
     const card = document.createElement("div");
     card.className = "card";
     
-    // Safely parse properties regardless of how monsters.json formats them
-    const cr = m.cr ?? m.challenge_rating ?? 'N/A';
-    const hp = m.hp ?? m.hit_points ?? 'N/A';
-    const ac = m.ac ?? m.armor_class ?? 'N/A';
+    // Safely parse properties matching the new JSON schema
+    const cr = m.Challenge ?? m.cr ?? 'N/A';
+    const hp = m["Hit Points"] ?? m.hp ?? 'N/A';
+    const ac = m["Armor Class"] ?? m.ac ?? 'N/A';
 
     card.innerHTML = `
       <div>
@@ -200,7 +201,6 @@ function renderMonsterRepository(filterQuery = "") {
       <button class="btn btn-primary add-btn">+ Add</button>
     `;
 
-    // Direct event listener eliminates reliance on monster ID existence
     card.querySelector(".add-btn").addEventListener("click", () => {
       addMonsterObjToCombat(m);
     });
@@ -221,7 +221,16 @@ function setupSearchListener() {
 
 function addMonsterObjToCombat(monster) {
   const d20Roll = Math.floor(Math.random() * 20) + 1;
-  const initMod = parseInt(monster.initMod ?? monster.dexterity_modifier ?? 0, 10) || 0;
+  
+  // Extract DEX modifier number from formats like "(+5)", "(-1)", or standard integer
+  let initMod = 0;
+  if (monster.DEX_mod) {
+    const parsed = parseInt(monster.DEX_mod.replace(/[^0-9-]/g, ''), 10);
+    if (!isNaN(parsed)) initMod = parsed;
+  } else if (monster.initMod) {
+    initMod = parseInt(monster.initMod, 10) || 0;
+  }
+
   const init = d20Roll + initMod;
 
   state.combatants.push({
