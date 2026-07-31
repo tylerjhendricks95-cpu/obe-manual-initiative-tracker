@@ -59,6 +59,8 @@ document.getElementById("add-btn").addEventListener("click", () => {
     id: crypto.randomUUID(),
     name,
     initiative: init,
+    hp: 10,
+    maxHp: 10,
     tokenId: null
   });
 
@@ -82,6 +84,8 @@ document.getElementById("add-selected-token-btn").addEventListener("click", asyn
     id: crypto.randomUUID(),
     name,
     initiative: init,
+    hp: 10,
+    maxHp: 10,
     tokenId
   });
 
@@ -140,6 +144,46 @@ document.getElementById("create-monster-form").addEventListener("submit", (e) =>
   renderMonsterRepository();
 });
 
+// Adjust Combatant HP
+function changeHp(combatantId, amount) {
+  const combatant = state.combatants.find((c) => c.id === combatantId);
+  if (!combatant) return;
+
+  const currentHp = combatant.hp ?? combatant.maxHp ?? 10;
+  combatant.hp = Math.max(0, currentHp + amount);
+
+  renderTracker();
+  syncState();
+}
+
+// Prompt to manually override HP
+function setManualHp(combatantId) {
+  const combatant = state.combatants.find((c) => c.id === combatantId);
+  if (!combatant) return;
+
+  const currentHp = combatant.hp ?? combatant.maxHp ?? 10;
+  const newHpStr = prompt(`Set HP for ${combatant.name}:`, currentHp);
+  
+  if (newHpStr !== null) {
+    const parsed = parseInt(newHpStr, 10);
+    if (!isNaN(parsed)) {
+      combatant.hp = Math.max(0, parsed);
+      renderTracker();
+      syncState();
+    }
+  }
+}
+
+// Remove combatant from list
+function removeCombatant(combatantId) {
+  state.combatants = state.combatants.filter((c) => c.id !== combatantId);
+  if (state.activeIndex >= state.combatants.length) {
+    state.activeIndex = 0;
+  }
+  renderTracker();
+  syncState();
+}
+
 // Render Main Tracker
 function renderTracker() {
   const list = document.getElementById("initiative-list");
@@ -149,12 +193,55 @@ function renderTracker() {
   state.combatants.forEach((c, idx) => {
     const card = document.createElement("div");
     card.className = `card ${idx === state.activeIndex ? "turn-active" : ""}`;
+
+    const hp = c.hp ?? c.maxHp ?? "N/A";
+    const maxHpDisplay = c.maxHp ? ` / ${c.maxHp}` : "";
+    const isUnconscious = typeof hp === "number" && hp <= 0;
+
     card.innerHTML = `
-      <div>
-        <strong>${c.name}</strong> ${c.tokenId ? "🔗" : "(Physical Mini)"}
+      <div style="display:flex; justify-between; align-items:center; margin-bottom: 6px;">
+        <div>
+          <strong>${c.name}</strong> ${c.tokenId ? "🔗" : ""}
+          ${isUnconscious ? '<span style="color:#ff4d4d; font-size:11px; margin-left: 5px;">(Unconscious)</span>' : ''}
+        </div>
+        <div>Init: <strong>${c.initiative}</strong></div>
       </div>
-      <div>Init: <strong>${c.initiative}</strong></div>
+      
+      <div style="display:flex; align-items:center; gap: 4px; font-size: 12px; background: rgba(0,0,0,0.2); padding: 4px 8px; border-radius: 4px;">
+        <span style="font-weight:bold; margin-right: 4px;">HP:</span>
+        <button class="btn-sm hp-btn" data-id="${c.id}" data-change="-5">-5</button>
+        <button class="btn-sm hp-btn" data-id="${c.id}" data-change="-1">-1</button>
+        <span class="hp-val" data-id="${c.id}" style="cursor:pointer; font-weight:bold; padding: 0 4px;" title="Click to set HP directly">
+          ${hp}${maxHpDisplay}
+        </span>
+        <button class="btn-sm hp-btn" data-id="${c.id}" data-change="1">+1</button>
+        <button class="btn-sm hp-btn" data-id="${c.id}" data-change="5">+5</button>
+        <button class="remove-btn" data-id="${c.id}" style="margin-left:auto; background:none; border:none; color:#ff4d4d; cursor:pointer; font-size:14px;">✕</button>
+      </div>
     `;
+
+    // Event listeners for HP adjustments
+    card.querySelectorAll(".hp-btn").forEach((btn) => {
+      btn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        const id = btn.dataset.id;
+        const change = parseInt(btn.dataset.change, 10);
+        changeHp(id, change);
+      });
+    });
+
+    // Event listener for manual HP override click
+    card.querySelector(".hp-val").addEventListener("click", (e) => {
+      e.stopPropagation();
+      setManualHp(btn.dataset.id);
+    });
+
+    // Remove combatant button
+    card.querySelector(".remove-btn").addEventListener("click", (e) => {
+      e.stopPropagation();
+      removeCombatant(c.id);
+    });
+
     list.appendChild(card);
   });
 }
@@ -235,12 +322,24 @@ function addMonsterObjToCombat(monster) {
     initMod = parseInt(monster.initMod, 10) || 0;
   }
 
+  // Extract baseline numerical HP (e.g. extracts 135 from "135 (18d10 + 36)")
+  let parsedHp = 10;
+  const rawHp = monster["Hit Points"] ?? monster.hp;
+  if (typeof rawHp === "number") {
+    parsedHp = rawHp;
+  } else if (typeof rawHp === "string") {
+    const hpMatch = rawHp.match(/\d+/);
+    if (hpMatch) parsedHp = parseInt(hpMatch[0], 10);
+  }
+
   const init = d20Roll + initMod;
 
   state.combatants.push({
     id: crypto.randomUUID(),
     name: monster.name,
     initiative: init,
+    hp: parsedHp,
+    maxHp: parsedHp,
     tokenId: null
   });
 
