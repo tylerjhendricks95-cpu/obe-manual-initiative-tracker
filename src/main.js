@@ -15,13 +15,24 @@ let state = {
   activeIndex: 0
 };
 
-let userRole = "PLAYER"; // Track user role locally
+let userRole = "PLAYER"; // Declared globally without top-level await
 
 OBR.onReady(async () => {
   await OBR.action.setIcon("/icon.png");
   await OBR.action.setTitle("Initiative Tracker");
 
+  // Safely fetch role inside async onReady callback
   userRole = await OBR.player.getRole();
+
+  // Hide GM controls and apply compact styling if user is a player
+  if (userRole !== "GM") {
+    const gmControls = document.getElementById("gm-controls");
+    const combatActions = document.querySelector(".combat-actions");
+    if (gmControls) gmControls.style.display = "none";
+    if (combatActions) combatActions.style.display = "none";
+
+    document.querySelector(".app-container")?.classList.add("player-view");
+  }
 
   setupTabs();
   renderMonsterRepository();
@@ -29,14 +40,7 @@ OBR.onReady(async () => {
   renderPartyList();
   setupPartyForm();
 
-  // Hide GM controls if viewer is a player
-  if (userRole !== "GM") {
-    const gmControls = document.getElementById("gm-controls");
-    const combatActions = document.querySelector(".combat-actions");
-    if (gmControls) gmControls.style.display = "none";
-    if (combatActions) combatActions.style.display = "none";
-  }
-
+  // Listen for real-time room metadata changes
   OBR.room.onMetadataChange((metadata) => {
     const roomState = metadata[METADATA_KEY];
     if (roomState) {
@@ -45,6 +49,7 @@ OBR.onReady(async () => {
     }
   });
 
+  // Fetch initial room metadata
   const initialMetadata = await OBR.room.getMetadata();
   if (initialMetadata[METADATA_KEY]) {
     state = initialMetadata[METADATA_KEY];
@@ -56,8 +61,8 @@ async function syncState() {
   await OBR.room.setMetadata({ [METADATA_KEY]: state });
 }
 
-// Add Combatant (Manual)
-document.getElementById("add-btn").addEventListener("click", () => {
+// Add Manual Combatant
+document.getElementById("add-btn")?.addEventListener("click", () => {
   const name = document.getElementById("add-name").value.trim();
   const init = parseInt(document.getElementById("add-init").value, 10);
 
@@ -80,8 +85,8 @@ document.getElementById("add-btn").addEventListener("click", () => {
   document.getElementById("add-init").value = "";
 });
 
-// Link Active Token
-document.getElementById("add-selected-token-btn").addEventListener("click", async () => {
+// Link Selected Token
+document.getElementById("add-selected-token-btn")?.addEventListener("click", async () => {
   const selection = await OBR.player.getSelection();
   const name = document.getElementById("add-name").value.trim() || "Token Combatant";
   const init = parseInt(document.getElementById("add-init").value, 10) || 10;
@@ -103,7 +108,7 @@ document.getElementById("add-selected-token-btn").addEventListener("click", asyn
 });
 
 // Next Turn
-document.getElementById("next-turn-btn").addEventListener("click", async () => {
+document.getElementById("next-turn-btn")?.addEventListener("click", async () => {
   if (state.combatants.length === 0) return;
 
   state.activeIndex = (state.activeIndex + 1) % state.combatants.length;
@@ -125,7 +130,7 @@ document.getElementById("next-turn-btn").addEventListener("click", async () => {
 });
 
 // Reset Combat
-document.getElementById("reset-combat-btn").addEventListener("click", () => {
+document.getElementById("reset-combat-btn")?.addEventListener("click", () => {
   state = { combatants: [], activeIndex: 0 };
   renderTracker();
   syncState();
@@ -155,14 +160,21 @@ function setupPartyForm() {
     renderPartyList();
   });
 
-  cancelBtn.addEventListener("click", resetPCForm);
+  cancelBtn?.addEventListener("click", resetPCForm);
 }
 
 function resetPCForm() {
-  document.getElementById("pc-form").reset();
-  document.getElementById("pc-edit-id").value = "";
-  document.getElementById("pc-submit-btn").textContent = "Save Player";
-  document.getElementById("pc-cancel-btn").style.display = "none";
+  const form = document.getElementById("pc-form");
+  if (form) form.reset();
+
+  const editId = document.getElementById("pc-edit-id");
+  if (editId) editId.value = "";
+
+  const submitBtn = document.getElementById("pc-submit-btn");
+  if (submitBtn) submitBtn.textContent = "Save Player";
+
+  const cancelBtn = document.getElementById("pc-cancel-btn");
+  if (cancelBtn) cancelBtn.style.display = "none";
 }
 
 function editPC(pc) {
@@ -262,7 +274,7 @@ function addPcToCombat(pc) {
   syncState();
 }
 
-// Custom Monster Creator Form
+// Custom Monster Form Handler
 const createMonsterForm = document.getElementById("create-monster-form");
 if (createMonsterForm) {
   createMonsterForm.addEventListener("submit", (e) => {
@@ -339,8 +351,8 @@ function renderTracker() {
     const maxHpDisplay = c.maxHp ? ` / ${c.maxHp}` : "";
     const isUnconscious = typeof hp === "number" && hp <= 0;
 
-    // GM view gets HP controls; Players only see status & initiative order
     if (userRole === "GM") {
+      // Full GM controls with HP buttons
       card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
           <div>
@@ -380,7 +392,7 @@ function renderTracker() {
         removeCombatant(c.id);
       });
     } else {
-      // Player view (names, initiative order, turn highlight, unconscious indicator only)
+      // Clean player view (Turn order, status, unconscious flag only)
       card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div>
@@ -499,14 +511,7 @@ function setupTabs() {
       document.querySelectorAll(".tab-content").forEach((c) => c.classList.remove("active"));
 
       btn.classList.add("active");
-      document.getElementById(btn.dataset.tab).classList.add("active");
+      document.getElementById(btn.dataset.tab)?.classList.add("active");
     });
   });
-}
-
-userRole = await OBR.player.getRole();
-
-// Add 'player-view' class to the container for compact styling
-if (userRole !== "GM") {
-  document.querySelector(".app-container")?.classList.add("player-view");
 }
