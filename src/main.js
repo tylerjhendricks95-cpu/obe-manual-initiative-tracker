@@ -1,6 +1,6 @@
-import "../style.css"; // Imports style.css located in your root directory
 import OBR from "@owlbear-rodeo/sdk";
 import defaultMonsters from "./monsters.json";
+import "./style.css"; 
 import { 
   getCustomMonsters, 
   saveCustomMonster, 
@@ -16,16 +16,14 @@ let state = {
   activeIndex: 0
 };
 
-let userRole = "PLAYER"; // Declared globally without top-level await
+let userRole = "PLAYER";
 
 OBR.onReady(async () => {
   await OBR.action.setIcon("/icon.png");
   await OBR.action.setTitle("Initiative Tracker");
 
-  // Safely fetch role inside async onReady callback
   userRole = await OBR.player.getRole();
 
-  // Hide GM controls and apply compact styling if user is a player
   if (userRole !== "GM") {
     const gmControls = document.getElementById("gm-controls");
     const combatActions = document.querySelector(".combat-actions");
@@ -41,7 +39,6 @@ OBR.onReady(async () => {
   renderPartyList();
   setupPartyForm();
 
-  // Listen for real-time room metadata changes
   OBR.room.onMetadataChange((metadata) => {
     const roomState = metadata[METADATA_KEY];
     if (roomState) {
@@ -50,7 +47,6 @@ OBR.onReady(async () => {
     }
   });
 
-  // Fetch initial room metadata
   const initialMetadata = await OBR.room.getMetadata();
   if (initialMetadata[METADATA_KEY]) {
     state = initialMetadata[METADATA_KEY];
@@ -62,7 +58,6 @@ async function syncState() {
   await OBR.room.setMetadata({ [METADATA_KEY]: state });
 }
 
-// Add Manual Combatant
 document.getElementById("add-btn")?.addEventListener("click", () => {
   const name = document.getElementById("add-name").value.trim();
   const init = parseInt(document.getElementById("add-init").value, 10);
@@ -86,7 +81,6 @@ document.getElementById("add-btn")?.addEventListener("click", () => {
   document.getElementById("add-init").value = "";
 });
 
-// Link Selected Token
 document.getElementById("add-selected-token-btn")?.addEventListener("click", async () => {
   const selection = await OBR.player.getSelection();
   const name = document.getElementById("add-name").value.trim() || "Token Combatant";
@@ -108,7 +102,6 @@ document.getElementById("add-selected-token-btn")?.addEventListener("click", asy
   syncState();
 });
 
-// Next Turn
 document.getElementById("next-turn-btn")?.addEventListener("click", async () => {
   if (state.combatants.length === 0) return;
 
@@ -130,14 +123,12 @@ document.getElementById("next-turn-btn")?.addEventListener("click", async () => 
   syncState();
 });
 
-// Reset Combat
 document.getElementById("reset-combat-btn")?.addEventListener("click", () => {
   state = { combatants: [], activeIndex: 0 };
   renderTracker();
   syncState();
 });
 
-// PC Form Logic
 function setupPartyForm() {
   const form = document.getElementById("pc-form");
   const cancelBtn = document.getElementById("pc-cancel-btn");
@@ -201,7 +192,6 @@ function renderPartyList() {
     return;
   }
 
-  // Group PCs by group name
   const groups = {};
   pcs.forEach((pc) => {
     const gName = pc.group || "Default Party";
@@ -209,7 +199,6 @@ function renderPartyList() {
     groups[gName].push(pc);
   });
 
-  // Render by group
   Object.keys(groups).forEach((groupName) => {
     const groupHeader = document.createElement("div");
     groupHeader.className = "group-header";
@@ -275,7 +264,6 @@ function addPcToCombat(pc) {
   syncState();
 }
 
-// Custom Monster Form Handler
 const createMonsterForm = document.getElementById("create-monster-form");
 if (createMonsterForm) {
   createMonsterForm.addEventListener("submit", (e) => {
@@ -338,7 +326,6 @@ function removeCombatant(combatantId) {
   syncState();
 }
 
-// Render Main Tracker
 function renderTracker() {
   const list = document.getElementById("initiative-list");
   if (!list) return;
@@ -353,7 +340,6 @@ function renderTracker() {
     const isUnconscious = typeof hp === "number" && hp <= 0;
 
     if (userRole === "GM") {
-      // Full GM controls with HP buttons
       card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
           <div>
@@ -393,7 +379,6 @@ function renderTracker() {
         removeCombatant(c.id);
       });
     } else {
-      // Clean player view (Turn order, status, unconscious flag only)
       card.innerHTML = `
         <div style="display:flex; justify-content:space-between; align-items:center;">
           <div>
