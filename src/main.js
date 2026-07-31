@@ -1,3 +1,4 @@
+import "../style.css"; // Imports style.css located in your root directory
 import OBR from "@owlbear-rodeo/sdk";
 import defaultMonsters from "./monsters.json";
 import { 
