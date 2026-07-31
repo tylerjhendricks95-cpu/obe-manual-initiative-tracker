@@ -10,6 +10,7 @@
   <div class="app-container">
     <nav class="nav-tabs">
       <button class="tab-btn active" data-tab="tracker-tab">Combat</button>
+      <button class="tab-btn" data-tab="party-tab">Parties</button>
       <button class="tab-btn" data-tab="monster-tab">Repo & Custom</button>
     </nav>
 
@@ -36,7 +37,30 @@
       <div id="initiative-list" class="list-container"></div>
     </section>
 
-    <!-- TAB 2: MONSTER REPO & CUSTOM MONSTER CREATOR -->
+    <!-- TAB 2: PARTY MANAGER -->
+    <section id="party-tab" class="tab-content">
+      <div class="panel">
+        <h3>Add / Edit Player Character</h3>
+        <form id="pc-form">
+          <input type="hidden" id="pc-edit-id">
+          <input type="text" id="pc-name" placeholder="Character Name" required>
+          <div class="form-row">
+            <input type="number" id="pc-hp" placeholder="Max HP" required>
+            <input type="number" id="pc-init" placeholder="Init Mod / Flat Init" required>
+          </div>
+          <input type="text" id="pc-group" placeholder="Party / Campaign Name (e.g., Friday Campaign)" required>
+          <div class="form-row" style="margin-top: 8px;">
+            <button type="submit" id="pc-submit-btn" class="btn btn-primary">Save Player</button>
+            <button type="button" id="pc-cancel-btn" class="btn btn-secondary" style="display:none;">Cancel Edit</button>
+          </div>
+        </form>
+      </div>
+
+      <h3>Saved Parties</h3>
+      <div id="party-list" class="list-container"></div>
+    </section>
+
+    <!-- TAB 3: MONSTER REPO & CUSTOM MONSTER CREATOR -->
     <section id="monster-tab" class="tab-content">
       <div class="panel">
         <h3>Create Custom Monster</h3>
