@@ -13,7 +13,7 @@ let state = {
 OBR.onReady(async () => {
   setupTabs();
   renderMonsterRepository();
-  setupSearchListener(); // <--- Initialize search listener
+  setupSearchListener();
 
   // Hide GM controls if viewer is a player
   const role = await OBR.player.getRole();
@@ -150,36 +150,40 @@ function renderTracker() {
   });
 }
 
-// Render Monster Repository List with Search Filtering
+// Render Monster Repository List with Search Filtering (Option 1)
 function renderMonsterRepository(filterQuery = "") {
   const container = document.getElementById("monster-repository");
   const allMonsters = [...defaultMonsters, ...getCustomMonsters()];
   container.innerHTML = "";
 
   const query = filterQuery.toLowerCase().trim();
-  
-  // Filter by name or type if a query is typed
-  const filteredMonsters = query
-    ? allMonsters.filter((m) => {
-        const nameMatch = m.name && m.name.toLowerCase().includes(query);
-        const typeMatch = typeof m.type === "string" && m.type.toLowerCase().includes(query);
-        return nameMatch || typeMatch;
-      })
-    : allMonsters;
+
+  // If search query is empty, ask user to search (prevents initial lag/partial load)
+  if (!query) {
+    container.innerHTML = `<div style="padding: 10px; color: var(--muted); text-align: center;">Type in the search bar to find monsters</div>`;
+    return;
+  }
+
+  // Filter full dataset by name or type
+  const filteredMonsters = allMonsters.filter((m) => {
+    const nameMatch = m.name && m.name.toLowerCase().includes(query);
+    const typeMatch = typeof m.type === "string" && m.type.toLowerCase().includes(query);
+    return nameMatch || typeMatch;
+  });
 
   if (filteredMonsters.length === 0) {
     container.innerHTML = `<div style="padding: 10px; color: var(--muted); text-align: center;">No monsters found</div>`;
     return;
   }
 
-  // Cap results at 50 items to keep performance smooth
-  filteredMonsters.slice(0, 50).forEach((m) => {
+  // Cap visible matches at 30 to keep rendering smooth
+  filteredMonsters.slice(0, 30).forEach((m) => {
     const card = document.createElement("div");
     card.className = "card";
     card.innerHTML = `
       <div>
-        <strong>${m.name}</strong> <span style="color:var(--muted)">(CR ${m.cr})</span>
-        <div style="font-size:11px; color:var(--muted)">HP: ${m.hp} | AC: ${m.ac}</div>
+        <strong>${m.name}</strong> <span style="color:var(--muted)">(CR ${m.cr ?? 'N/A'})</span>
+        <div style="font-size:11px; color:var(--muted)">HP: ${m.hp ?? 'N/A'} | AC: ${m.ac ?? 'N/A'}</div>
       </div>
       <button class="btn btn-primary" onclick="addMonsterToCombat('${m.id}')">+ Add</button>
     `;
@@ -187,9 +191,9 @@ function renderMonsterRepository(filterQuery = "") {
   });
 }
 
-// Bind search input event listener
+// Bind search input event listener using matching element ID
 function setupSearchListener() {
-  const searchInput = document.getElementById("monster-search");
+  const searchInput = document.getElementById("search-monsters");
   if (searchInput) {
     searchInput.addEventListener("input", (e) => {
       renderMonsterRepository(e.target.value);
@@ -203,7 +207,8 @@ window.addMonsterToCombat = function (id) {
   if (!monster) return;
 
   const d20Roll = Math.floor(Math.random() * 20) + 1;
-  const init = d20Roll + monster.initMod;
+  const initMod = monster.initMod || 0;
+  const init = d20Roll + initMod;
 
   state.combatants.push({
     id: crypto.randomUUID(),
