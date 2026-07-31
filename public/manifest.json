@@ -2,11 +2,11 @@
   "name": "Manual Initiative & Monster Tracker",
   "version": "1.0.0",
   "manifest_version": 1,
-  "icon": "/obe-manual-initiative-tracker/icon.svg",
+  "icon": "icon.svg",
   "action": {
     "title": "Initiative Tracker",
-    "icon": "/obe-manual-initiative-tracker/icon.svg",
-    "popover": "/obe-manual-initiative-tracker/index.html",
+    "icon": "icon.svg",
+    "popover": "index.html",
     "height": 600,
     "width": 400
   }
