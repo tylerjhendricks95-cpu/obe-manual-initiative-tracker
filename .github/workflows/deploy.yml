@@ -1,4 +1,4 @@
-Name: Deploy Extension to GitHub Pages
+
 
 on:
   push:
