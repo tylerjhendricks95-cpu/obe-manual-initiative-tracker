@@ -1,5 +1,6 @@
 import OBR from "@owlbear-rodeo/sdk";
 import defaultMonsters from "./monsters.json";
+import "../style.css";
 import { 
   getCustomMonsters, 
   saveCustomMonster, 
@@ -50,13 +51,30 @@ OBR.onReady(async () => {
   if (initialMetadata[METADATA_KEY]) {
     state = initialMetadata[METADATA_KEY];
     renderTracker();
+  } else {
+    adjustWindowHeight();
   }
 });
+
+// Dynamic Window Height Calculator
+async function adjustWindowHeight() {
+  const BASE_HEIGHT = userRole === "GM" ? 220 : 120; 
+  const CARD_HEIGHT = userRole === "GM" ? 75 : 45; 
+  
+  const totalCombatants = state.combatants.length;
+  const calculatedHeight = BASE_HEIGHT + (totalCombatants * CARD_HEIGHT);
+  
+  // Clamp between a minimum of 200px and a maximum of 700px
+  const newHeight = Math.min(Math.max(calculatedHeight, 200), 700);
+
+  await OBR.action.setHeight(newHeight);
+}
 
 async function syncState() {
   await OBR.room.setMetadata({ [METADATA_KEY]: state });
 }
 
+// Add Manual Combatant
 document.getElementById("add-btn")?.addEventListener("click", () => {
   const name = document.getElementById("add-name").value.trim();
   const init = parseInt(document.getElementById("add-init").value, 10);
@@ -80,6 +98,7 @@ document.getElementById("add-btn")?.addEventListener("click", () => {
   document.getElementById("add-init").value = "";
 });
 
+// Link Selected Token
 document.getElementById("add-selected-token-btn")?.addEventListener("click", async () => {
   const selection = await OBR.player.getSelection();
   const name = document.getElementById("add-name").value.trim() || "Token Combatant";
@@ -101,6 +120,7 @@ document.getElementById("add-selected-token-btn")?.addEventListener("click", asy
   syncState();
 });
 
+// Next Turn
 document.getElementById("next-turn-btn")?.addEventListener("click", async () => {
   if (state.combatants.length === 0) return;
 
@@ -122,12 +142,14 @@ document.getElementById("next-turn-btn")?.addEventListener("click", async () => 
   syncState();
 });
 
+// Reset Combat
 document.getElementById("reset-combat-btn")?.addEventListener("click", () => {
   state = { combatants: [], activeIndex: 0 };
   renderTracker();
   syncState();
 });
 
+// PC Form Logic
 function setupPartyForm() {
   const form = document.getElementById("pc-form");
   const cancelBtn = document.getElementById("pc-cancel-btn");
@@ -391,6 +413,8 @@ function renderTracker() {
 
     list.appendChild(card);
   });
+
+  adjustWindowHeight();
 }
 
 function renderMonsterRepository(filterQuery = "") {
@@ -497,25 +521,14 @@ function setupTabs() {
 
       btn.classList.add("active");
       document.getElementById(btn.dataset.tab)?.classList.add("active");
+
+      if (btn.dataset.tab === "tracker-tab") {
+        adjustWindowHeight();
+      } else if (btn.dataset.tab === "party-tab") {
+        OBR.action.setHeight(480);
+      } else if (btn.dataset.tab === "monster-tab") {
+        OBR.action.setHeight(550);
+      }
     });
   });
 }
-async function adjustWindowHeight() {
-  // Base offset for header, tabs, buttons, padding, etc.
-  const BASE_HEIGHT = 160; 
-  
-  // Estimate height per card (GM view has HP controls, so it's taller than Player view)
-  const CARD_HEIGHT = userRole === "GM" ? 75 : 45; 
-  
-  const totalCombatants = state.combatants.length;
-  
-  // Calculate new target height with min and max bounds
-  const calculatedHeight = BASE_HEIGHT + (totalCombatants * CARD_HEIGHT);
-  
-  // Clamp between a min height (e.g. 200px) and max height (e.g. 700px)
-  const newHeight = Math.min(Math.max(calculatedHeight, 200), 700);
-
-  // Tell Owlbear Rodeo to resize the extension iframe window
-  await OBR.action.setHeight(newHeight);
-}
-
