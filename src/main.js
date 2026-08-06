@@ -500,3 +500,22 @@ function setupTabs() {
     });
   });
 }
+async function adjustWindowHeight() {
+  // Base offset for header, tabs, buttons, padding, etc.
+  const BASE_HEIGHT = 160; 
+  
+  // Estimate height per card (GM view has HP controls, so it's taller than Player view)
+  const CARD_HEIGHT = userRole === "GM" ? 75 : 45; 
+  
+  const totalCombatants = state.combatants.length;
+  
+  // Calculate new target height with min and max bounds
+  const calculatedHeight = BASE_HEIGHT + (totalCombatants * CARD_HEIGHT);
+  
+  // Clamp between a min height (e.g. 200px) and max height (e.g. 700px)
+  const newHeight = Math.min(Math.max(calculatedHeight, 200), 700);
+
+  // Tell Owlbear Rodeo to resize the extension iframe window
+  await OBR.action.setHeight(newHeight);
+}
+
