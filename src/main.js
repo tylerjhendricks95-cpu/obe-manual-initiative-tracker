@@ -3,6 +3,7 @@ import OBR from "@owlbear-rodeo/sdk";
 // Unique Key for Owlbear Room Metadata Storage
 const ID = "com.initiative-tracker.app";
 const METADATA_KEY = `${ID}/metadata`;
+const LOCAL_STORAGE_KEY = "initiative_tracker_saved_party";
 
 // Local State
 let state = {
@@ -27,7 +28,6 @@ async function saveState() {
       [METADATA_KEY]: state,
     });
   } else {
-    // Fallback local render if not inside OBR
     render();
   }
 }
@@ -180,6 +180,36 @@ function setupEventListeners() {
     state.currentRound = 1;
     saveState();
   });
+
+  // --- SAVE / LOAD PARTY PRESETS ---
+  safeAddListener("save-party-btn", "click", () => {
+    if (state.items.length === 0) {
+      alert("Add some party members before saving!");
+      return;
+    }
+    // Store current list locally in browser memory
+    localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state.items));
+    alert("Party saved to browser!");
+  });
+
+  safeAddListener("load-party-btn", "click", () => {
+    const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
+    if (!saved) {
+      alert("No saved party found!");
+      return;
+    }
+
+    const savedParty = JSON.parse(saved);
+    // Generate fresh IDs so they don't clash
+    const partyWithNewIds = savedParty.map((member) => ({
+      ...member,
+      id: crypto.randomUUID(),
+    }));
+
+    state.items = [...state.items, ...partyWithNewIds];
+    sortInitiative();
+    saveState();
+  });
 }
 
 // Main Initialization Function
@@ -189,7 +219,6 @@ function init() {
 
   OBR.onReady(async () => {
     try {
-      // 1. Role Check
       const role = await OBR.player.getRole();
       isGM = role === "GM";
       const app = document.getElementById("app");
@@ -202,14 +231,12 @@ function init() {
         if (app) app.classList.remove("player-view");
       }
 
-      // 2. Fetch initial metadata from room
       const metadata = await OBR.room.getMetadata();
       if (metadata[METADATA_KEY]) {
         state = metadata[METADATA_KEY];
       }
       render();
 
-      // 3. Listen for metadata changes (Live Sync)
       OBR.room.onMetadataChange((updatedMetadata) => {
         if (updatedMetadata[METADATA_KEY]) {
           state = updatedMetadata[METADATA_KEY];
