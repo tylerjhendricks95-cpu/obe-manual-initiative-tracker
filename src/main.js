@@ -1,12 +1,18 @@
 import OBR from "@owlbear-rodeo/sdk";
 
-// Local state
-let items = [];
-let currentTurnIndex = 0;
-let currentRound = 1;
-let isGM = true; // Default to true so controls work even if OBR SDK delays
+// Unique Key for Owlbear Room Metadata Storage
+const ID = "com.initiative-tracker.app";
+const METADATA_KEY = `${ID}/metadata`;
 
-// Helper: Safely add event listeners without crashing if element is missing
+// Local State
+let state = {
+  items: [],
+  currentTurnIndex: 0,
+  currentRound: 1,
+};
+let isGM = true;
+
+// Helper: Add Event Listener Safely
 function safeAddListener(id, event, handler) {
   const el = document.getElementById(id);
   if (el) {
@@ -14,9 +20,21 @@ function safeAddListener(id, event, handler) {
   }
 }
 
+// Save State to Owlbear Rodeo Room
+async function saveState() {
+  if (OBR.isReady && isGM) {
+    await OBR.room.setMetadata({
+      [METADATA_KEY]: state,
+    });
+  } else {
+    // Fallback local render if not inside OBR
+    render();
+  }
+}
+
 // Logic Helpers
 function sortInitiative() {
-  items.sort((a, b) => b.initiative - a.initiative);
+  state.items.sort((a, b) => b.initiative - a.initiative);
 }
 
 // Dynamic Window Resizing
@@ -37,21 +55,21 @@ function render() {
   const initiativeList = document.getElementById("initiative-list");
   const roundEl = document.getElementById("round-count");
 
-  if (roundEl) roundEl.textContent = currentRound;
+  if (roundEl) roundEl.textContent = state.currentRound;
 
   if (initiativeList) {
     initiativeList.innerHTML = "";
 
-    if (items.length === 0) {
+    if (state.items.length === 0) {
       initiativeList.innerHTML = `<div style="color: var(--muted); text-align: center; padding: 12px;">No combatants added.</div>`;
     } else {
-      items.forEach((item, index) => {
-        const isCurrentTurn = index === currentTurnIndex;
+      state.items.forEach((item, index) => {
+        const isCurrentTurn = index === state.currentTurnIndex;
         const card = document.createElement("div");
         card.className = `card ${isCurrentTurn ? "turn-active" : ""}`;
 
-        const removeBtnHTML = isGM 
-          ? `<button class="btn btn-secondary btn-sm remove-btn" data-id="${item.id}">✕</button>` 
+        const removeBtnHTML = isGM
+          ? `<button class="btn btn-secondary btn-sm remove-btn" data-id="${item.id}">✕</button>`
           : "";
 
         card.innerHTML = `
@@ -73,16 +91,18 @@ function render() {
   }
 
   // Attach GM Delete Button Listeners
-  document.querySelectorAll(".remove-btn").forEach((btn) => {
-    btn.onclick = (e) => {
-      const id = e.currentTarget.dataset.id;
-      items = items.filter((i) => i.id !== id);
-      if (currentTurnIndex >= items.length && items.length > 0) {
-        currentTurnIndex = items.length - 1;
-      }
-      render();
-    };
-  });
+  if (isGM) {
+    document.querySelectorAll(".remove-btn").forEach((btn) => {
+      btn.onclick = (e) => {
+        const id = e.currentTarget.dataset.id;
+        state.items = state.items.filter((i) => i.id !== id);
+        if (state.currentTurnIndex >= state.items.length && state.items.length > 0) {
+          state.currentTurnIndex = state.items.length - 1;
+        }
+        saveState();
+      };
+    });
+  }
 
   adjustWindowHeight();
 }
@@ -108,7 +128,7 @@ function setupEventListeners() {
     };
   });
 
-  // GM Controls
+  // Add Combatant Form
   safeAddListener("add-combatant-form", "submit", (e) => {
     e.preventDefault();
     const nameInput = document.getElementById("combatant-name");
@@ -117,7 +137,7 @@ function setupEventListeners() {
 
     if (!nameInput || !nameInput.value.trim()) return;
 
-    items.push({
+    state.items.push({
       id: crypto.randomUUID(),
       name: nameInput.value.trim(),
       initiative: parseInt(initInput?.value, 10) || 0,
@@ -128,34 +148,37 @@ function setupEventListeners() {
     nameInput.value = "";
     if (initInput) initInput.value = "";
     if (hpInput) hpInput.value = "";
-    render();
+    saveState();
   });
 
+  // Next Turn Button
   safeAddListener("next-turn-btn", "click", () => {
-    if (items.length === 0) return;
-    currentTurnIndex++;
-    if (currentTurnIndex >= items.length) {
-      currentTurnIndex = 0;
-      currentRound++;
+    if (state.items.length === 0) return;
+    state.currentTurnIndex++;
+    if (state.currentTurnIndex >= state.items.length) {
+      state.currentTurnIndex = 0;
+      state.currentRound++;
     }
-    render();
+    saveState();
   });
 
+  // Previous Turn Button
   safeAddListener("prev-turn-btn", "click", () => {
-    if (items.length === 0) return;
-    currentTurnIndex--;
-    if (currentTurnIndex < 0) {
-      currentTurnIndex = items.length - 1;
-      if (currentRound > 1) currentRound--;
+    if (state.items.length === 0) return;
+    state.currentTurnIndex--;
+    if (state.currentTurnIndex < 0) {
+      state.currentTurnIndex = state.items.length - 1;
+      if (state.currentRound > 1) state.currentRound--;
     }
-    render();
+    saveState();
   });
 
+  // Reset Combat Button
   safeAddListener("reset-combat-btn", "click", () => {
-    items = [];
-    currentTurnIndex = 0;
-    currentRound = 1;
-    render();
+    state.items = [];
+    state.currentTurnIndex = 0;
+    state.currentRound = 1;
+    saveState();
   });
 }
 
@@ -164,9 +187,9 @@ function init() {
   setupEventListeners();
   render();
 
-  // OBR Role Check
   OBR.onReady(async () => {
     try {
+      // 1. Role Check
       const role = await OBR.player.getRole();
       isGM = role === "GM";
       const app = document.getElementById("app");
@@ -178,14 +201,27 @@ function init() {
         document.body.classList.remove("player-mode");
         if (app) app.classList.remove("player-view");
       }
+
+      // 2. Fetch initial metadata from room
+      const metadata = await OBR.room.getMetadata();
+      if (metadata[METADATA_KEY]) {
+        state = metadata[METADATA_KEY];
+      }
       render();
+
+      // 3. Listen for metadata changes (Live Sync)
+      OBR.room.onMetadataChange((updatedMetadata) => {
+        if (updatedMetadata[METADATA_KEY]) {
+          state = updatedMetadata[METADATA_KEY];
+          render();
+        }
+      });
     } catch (e) {
-      console.warn("OBR role check skipped:", e);
+      console.warn("OBR SDK error:", e);
     }
   });
 }
 
-// Run init once DOM is ready
 if (document.readyState === "loading") {
   document.addEventListener("DOMContentLoaded", init);
 } else {
