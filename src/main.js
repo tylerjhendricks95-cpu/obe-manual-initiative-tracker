@@ -13,11 +13,14 @@ let state = {
 };
 let isGM = true;
 
-// Helper: Add Event Listener Safely
+// Helper: Add Event Listener Safely with preventDefault
 function safeAddListener(id, event, handler) {
   const el = document.getElementById(id);
   if (el) {
-    el.addEventListener(event, handler);
+    el.addEventListener(event, (e) => {
+      e.preventDefault();
+      handler(e);
+    });
   }
 }
 
@@ -69,7 +72,7 @@ function render() {
         card.className = `card ${isCurrentTurn ? "turn-active" : ""}`;
 
         const removeBtnHTML = isGM
-          ? `<button class="btn btn-secondary btn-sm remove-btn" data-id="${item.id}">✕</button>`
+          ? `<button type="button" class="btn btn-secondary btn-sm remove-btn" data-id="${item.id}">✕</button>`
           : "";
 
         card.innerHTML = `
@@ -94,6 +97,7 @@ function render() {
   if (isGM) {
     document.querySelectorAll(".remove-btn").forEach((btn) => {
       btn.onclick = (e) => {
+        e.preventDefault();
         const id = e.currentTarget.dataset.id;
         state.items = state.items.filter((i) => i.id !== id);
         if (state.currentTurnIndex >= state.items.length && state.items.length > 0) {
@@ -109,28 +113,39 @@ function render() {
 
 // Setup Event Listeners
 function setupEventListeners() {
-  // Tab Switching
+  // TAB SWITCHING FIX
   const tabBtns = document.querySelectorAll(".tab-btn");
   const tabContents = document.querySelectorAll(".tab-content");
 
   tabBtns.forEach((btn) => {
-    btn.onclick = () => {
-      const targetTab = btn.dataset.tab;
+    btn.addEventListener("click", (e) => {
+      e.preventDefault(); // Stop iframe reload
+      e.stopPropagation();
 
+      const targetTab = btn.getAttribute("data-tab");
+
+      // Remove active class from all tabs & content containers
       tabBtns.forEach((b) => b.classList.remove("active"));
-      tabContents.forEach((c) => c.classList.remove("active"));
+      tabContents.forEach((c) => {
+        c.classList.remove("active");
+        c.style.display = "none"; // Explicit hide
+      });
 
+      // Activate current tab
       btn.classList.add("active");
+      
       const activeContent = document.getElementById(`${targetTab}-tab`);
-      if (activeContent) activeContent.classList.add("active");
+      if (activeContent) {
+        activeContent.classList.add("active");
+        activeContent.style.display = "block"; // Explicit show
+      }
 
       adjustWindowHeight();
-    };
+    });
   });
 
   // Add Combatant Form
-  safeAddListener("add-combatant-form", "submit", (e) => {
-    e.preventDefault();
+  safeAddListener("add-combatant-form", "submit", () => {
     const nameInput = document.getElementById("combatant-name");
     const initInput = document.getElementById("combatant-init");
     const hpInput = document.getElementById("combatant-hp");
@@ -181,15 +196,14 @@ function setupEventListeners() {
     saveState();
   });
 
-  // --- SAVE / LOAD PARTY PRESETS ---
+  // Save / Load Party Presets
   safeAddListener("save-party-btn", "click", () => {
     if (state.items.length === 0) {
       alert("Add some party members before saving!");
       return;
     }
-    // Store current list locally in browser memory
     localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(state.items));
-    alert("Party saved to browser!");
+    alert("Party saved!");
   });
 
   safeAddListener("load-party-btn", "click", () => {
@@ -200,7 +214,6 @@ function setupEventListeners() {
     }
 
     const savedParty = JSON.parse(saved);
-    // Generate fresh IDs so they don't clash
     const partyWithNewIds = savedParty.map((member) => ({
       ...member,
       id: crypto.randomUUID(),
