@@ -17,20 +17,18 @@
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }
 
+/* Base Body: DM View (Default) */
 html, body {
   background-color: var(--bg-color);
   color: var(--text-color);
   font-size: 13px;
-  overflow: hidden; /* Prevents whole extension from scrolling */
-  height: 100%;
+  overflow-y: auto; /* DM side can scroll freely */
+  height: auto;
 }
 
 .app-container {
   padding: 8px;
   max-width: 100%;
-  height: 100vh;
-  display: flex;
-  flex-direction: column;
 }
 
 /* Tabs */
@@ -39,7 +37,6 @@ html, body {
   gap: 4px;
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 8px;
-  flex-shrink: 0;
 }
 
 .tab-btn {
@@ -66,13 +63,10 @@ html, body {
 
 .tab-content {
   display: none;
-  flex: 1;
-  overflow-y: auto;
 }
 
 .tab-content.active {
-  display: flex;
-  flex-direction: column;
+  display: block;
 }
 
 /* Panels & Headers */
@@ -82,7 +76,6 @@ html, body {
   border-radius: 6px;
   margin-bottom: 8px;
   border: 1px solid var(--border-color);
-  flex-shrink: 0;
 }
 
 h3 {
@@ -178,26 +171,26 @@ textarea {
 
 .combat-actions {
   margin-bottom: 8px;
-  flex-shrink: 0;
 }
 
-/* Dynamic Initiative List Container */
+/* Lists & Scrollbars for DM */
 .list-container {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  flex: 1;
-  min-height: 0;
 }
 
 #initiative-list {
-  flex: 1;
-  max-height: 280px; /* Reduced from 480px to fit Owlbear popups cleanly */
+  max-height: 450px;
   overflow-y: auto;
   padding-right: 2px;
 }
 
-/* Scrollbar Styling */
+#monster-repository {
+  max-height: 350px;
+  overflow-y: auto;
+}
+
 #initiative-list::-webkit-scrollbar,
 #monster-repository::-webkit-scrollbar {
   width: 5px;
@@ -237,14 +230,19 @@ textarea {
   margin-bottom: 6px;
 }
 
-#monster-repository {
-  max-height: 240px;
-  overflow-y: auto;
+/* ========================================================= */
+/* PLAYER VIEW OVERRIDES ONLY                                 */
+/* ========================================================= */
+body.player-mode {
+  overflow: hidden !important; /* Prevents scrolling on player side */
+  height: 100vh;
 }
 
-/* Player View Modifications */
 .app-container.player-view {
   padding: 4px;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
 .app-container.player-view .nav-tabs {
@@ -254,6 +252,11 @@ textarea {
 .app-container.player-view h3 {
   font-size: 12px;
   margin: 2px 0;
+}
+
+.app-container.player-view #initiative-list {
+  max-height: 260px; /* Scaled down specifically for player frame */
+  overflow-y: auto;
 }
 
 .app-container.player-view .card {
